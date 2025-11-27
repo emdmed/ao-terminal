@@ -35,12 +35,6 @@
   --radius-sm: calc(0.5rem - 4px);
 }
 
-* {
-  margin: 0;
-  padding: 0;
-  box-sizing: border-box;
-}
-
 html, body, #root {
   width: 100%;
   height: 100%;

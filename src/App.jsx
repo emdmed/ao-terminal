@@ -3,6 +3,7 @@ import { Terminal } from "./components/Terminal";
 import { Layout } from "./components/Layout";
 import { themes, loadTheme } from "./themes/themes";
 import { invoke } from "@tauri-apps/api/core";
+import { useCwdMonitor } from "./hooks/useCwdMonitor";
 import {
   Sidebar,
   SidebarContent,
@@ -14,7 +15,7 @@ import {
   SidebarMenuItem,
   SidebarProvider,
 } from "@/components/ui/sidebar";
-import { Folder } from "lucide-react";
+import { Folder, File, ChevronUp } from "lucide-react";
 
 function App() {
   const currentTheme = loadTheme();
@@ -22,6 +23,9 @@ function App() {
   const [folders, setFolders] = useState([]);
   const [currentPath, setCurrentPath] = useState("");
   const [terminalSessionId, setTerminalSessionId] = useState(null);
+
+  // Monitor terminal CWD changes
+  const detectedCwd = useCwdMonitor(terminalSessionId, sidebarOpen);
 
   useEffect(() => {
     const handleKeyDown = (e) => {
@@ -44,23 +48,59 @@ function App() {
     }
   }, [sidebarOpen]);
 
+  // Auto-refresh sidebar when terminal session becomes available
+  useEffect(() => {
+    if (terminalSessionId && sidebarOpen && folders.length === 0) {
+      loadFolders();
+    }
+  }, [terminalSessionId]);
+
+  // Reload sidebar when terminal CWD changes
+  useEffect(() => {
+    if (detectedCwd && sidebarOpen) {
+      console.log('CWD changed, reloading sidebar');
+      loadFolders();
+    }
+  }, [detectedCwd]);
+
   const loadFolders = async (path) => {
     try {
-      console.log('Loading folders from path:', path || 'terminal working directory');
-      const directories = await invoke('read_directory', { path });
-      console.log('Received directories:', directories);
-      setFolders(directories);
+      let targetPath = path;
 
-      if (!path && terminalSessionId) {
-        const current = await invoke('get_terminal_cwd', { sessionId: terminalSessionId });
-        console.log('Terminal working directory:', current);
-        setCurrentPath(current);
-      } else {
-        setCurrentPath(path);
+      // If no explicit path, get terminal's CWD first
+      if (!path) {
+        if (!terminalSessionId) {
+          console.log('No terminal session yet');
+          setFolders([]);
+          setCurrentPath('Waiting for terminal...');
+          return;
+        }
+
+        // Get terminal's actual CWD FIRST
+        targetPath = await invoke('get_terminal_cwd', { sessionId: terminalSessionId });
+        console.log('Terminal CWD:', targetPath);
       }
+
+      // Now load files from the correct directory
+      const directories = await invoke('read_directory', { path: targetPath });
+      console.log('Loaded', directories.length, 'items from:', targetPath);
+
+      setFolders(directories);
+      setCurrentPath(targetPath);
     } catch (error) {
       console.error('Failed to load folders:', error);
+      setFolders([]);
+      setCurrentPath('Error loading directory');
     }
+  };
+
+  const navigateToParent = async () => {
+    if (!currentPath || currentPath === '/') {
+      return; // Already at root
+    }
+
+    const parentPath = currentPath.split('/').slice(0, -1).join('/') || '/';
+    await loadFolders(parentPath);
   };
 
   return (
@@ -72,25 +112,48 @@ function App() {
               <SidebarContent>
                 <SidebarGroup>
                   <SidebarGroupLabel>
-                    Folders
-                    {currentPath && (
-                      <div style={{ fontSize: '0.75rem', fontWeight: 'normal', marginTop: '0.25rem', opacity: 0.7 }}>
-                        {currentPath}
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%' }}>
+                      <div style={{ fontSize: '0.75rem', fontWeight: 'normal', opacity: 0.7, flex: 1 }}>
+                        {currentPath || 'No path'}
                       </div>
-                    )}
+                      {currentPath && currentPath !== '/' && (
+                        <button
+                          onClick={navigateToParent}
+                          style={{
+                            background: 'none',
+                            border: 'none',
+                            cursor: 'pointer',
+                            padding: '4px',
+                            display: 'flex',
+                            alignItems: 'center',
+                            opacity: 0.7,
+                          }}
+                          title="Go to parent directory"
+                        >
+                          <ChevronUp className="w-4 h-4" />
+                        </button>
+                      )}
+                    </div>
                   </SidebarGroupLabel>
-                  <SidebarGroupContent>
+                  <SidebarGroupContent className="p-2">
                     <SidebarMenu>
                       {folders.length === 0 ? (
                         <div style={{ padding: '0.5rem', opacity: 0.5, fontSize: '0.875rem' }}>
-                          No folders found
+                          No files or folders found
                         </div>
                       ) : (
-                        folders.map((folder) => (
-                          <SidebarMenuItem key={folder.path}>
-                            <SidebarMenuButton onClick={() => loadFolders(folder.path)}>
-                              <Folder className="w-4 h-4 mr-2" />
-                              {folder.name}
+                        folders.map((item) => (
+                          <SidebarMenuItem key={item.path}>
+                            <SidebarMenuButton
+                              onClick={item.is_dir ? () => loadFolders(item.path) : undefined}
+                              style={{ cursor: item.is_dir ? 'pointer' : 'default' }}
+                            >
+                              {item.is_dir ? (
+                                <Folder className="w-4 h-4 mr-2" />
+                              ) : (
+                                <File className="w-4 h-4 mr-2" />
+                              )}
+                              {item.name}
                             </SidebarMenuButton>
                           </SidebarMenuItem>
                         ))

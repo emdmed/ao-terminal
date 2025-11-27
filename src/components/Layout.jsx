@@ -1,8 +1,8 @@
 export function Layout({ sidebar, children }) {
   return (
-    <div style={{ width: '100%', height: '100%', display: 'flex' }}>
+    <div className="p-2 flex" style={{ width: '100%', height: '100%' }}>
       {sidebar}
-      <div style={{ flex: 1, overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
+      <div className="flex-1 flex flex-col overflow-hidden">
         {children}
       </div>
     </div>

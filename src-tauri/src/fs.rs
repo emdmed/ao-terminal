@@ -33,18 +33,21 @@ pub fn read_directory(path: Option<String>) -> Result<Vec<DirectoryEntry>, Strin
             .unwrap_or("Unknown")
             .to_string();
 
-        // Only include directories
-        if metadata.is_dir() {
-            result.push(DirectoryEntry {
-                name,
-                path: path.to_string_lossy().to_string(),
-                is_dir: true,
-            });
-        }
+        result.push(DirectoryEntry {
+            name,
+            path: path.to_string_lossy().to_string(),
+            is_dir: metadata.is_dir(),
+        });
     }
 
-    // Sort by name
-    result.sort_by(|a, b| a.name.to_lowercase().cmp(&b.name.to_lowercase()));
+    // Sort: directories first, then files, both alphabetically
+    result.sort_by(|a, b| {
+        match (a.is_dir, b.is_dir) {
+            (true, false) => std::cmp::Ordering::Less,
+            (false, true) => std::cmp::Ordering::Greater,
+            _ => a.name.to_lowercase().cmp(&b.name.to_lowercase()),
+        }
+    });
 
     Ok(result)
 }
