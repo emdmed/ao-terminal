@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Terminal } from "./components/Terminal";
 import { Layout } from "./components/Layout";
 import { FileTree } from "./components/FileTree";
@@ -25,6 +25,9 @@ function App() {
   const [folders, setFolders] = useState([]);
   const [currentPath, setCurrentPath] = useState("");
   const [terminalSessionId, setTerminalSessionId] = useState(null);
+
+  // Ref to access terminal's imperative methods
+  const terminalRef = useRef(null);
 
   // Tree view state
   const [viewMode, setViewMode] = useState('flat'); // 'flat' | 'tree'
@@ -223,6 +226,11 @@ function App() {
       });
 
       console.log('Sent to terminal:', textToSend);
+
+      // Focus terminal after sending path
+      if (terminalRef.current?.focus) {
+        terminalRef.current.focus();
+      }
     } catch (error) {
       console.error('Failed to send file to terminal:', absolutePath, error);
     }
@@ -435,7 +443,7 @@ function App() {
                                 }}
                               >
                                 {item.is_dir ? (
-                                  <Folder className="w-3 h-3 mr-1.5" />
+                                  <Folder className="w-3 h-3 mr-1.5" style={{ color: '#E6C384' }} />
                                 ) : (
                                   <File className="w-3 h-3 mr-1.5" />
                                 )}
@@ -462,6 +470,7 @@ function App() {
         }
       >
         <Terminal
+          ref={terminalRef}
           theme={themes[currentTheme]}
           onSessionReady={(id) => setTerminalSessionId(id)}
         />

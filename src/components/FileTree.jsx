@@ -57,7 +57,7 @@ function TreeNode({ node, expandedFolders, currentPath, onToggle, onSendToTermin
                   <ChevronRight className="w-3xs h-3" />
                 )}
               </div>
-              <Folder className="w-3 h-3 ml-1 mr-1.5" />
+              <Folder className="w-3 h-3 ml-1 mr-1.5" style={{ color: '#E6C384' }} />
               <span>{node.name}</span>
             </div>
           </SidebarMenuButton>

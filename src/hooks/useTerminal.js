@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useImperativeHandle } from 'react';
 import { Terminal } from '@xterm/xterm';
 import { FitAddon } from '@xterm/addon-fit';
 import { WebLinksAddon } from '@xterm/addon-web-links';
@@ -6,7 +6,7 @@ import { invoke } from '@tauri-apps/api/core';
 import { listen } from '@tauri-apps/api/event';
 import '@xterm/xterm/css/xterm.css';
 
-export function useTerminal(terminalRef, theme) {
+export function useTerminal(terminalRef, theme, imperativeRef) {
   const [terminal, setTerminal] = useState(null);
   const [fitAddon, setFitAddon] = useState(null);
   const [sessionId, setSessionId] = useState(null);
@@ -116,6 +116,18 @@ export function useTerminal(terminalRef, theme) {
       terminal.options.theme = theme;
     }
   }, [terminal, theme]);
+
+  // Expose focus method to parent via ref
+  useImperativeHandle(imperativeRef, () => ({
+    focus: () => {
+      if (terminal && isReady) {
+        terminal.focus();
+        return true;
+      }
+      console.warn('Terminal not ready for focus');
+      return false;
+    }
+  }), [terminal, isReady]);
 
   return {
     terminal,
