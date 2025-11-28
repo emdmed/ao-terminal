@@ -524,7 +524,7 @@ function App() {
                       )}
                     </div>
                   </SidebarGroupLabel>
-                  <SidebarGroupContent className="p-1" style={{ overflowY: 'scroll', flex: 1, minHeight: 0 }}>
+                  <SidebarGroupContent className="p-1" style={{ overflowY: 'auto', flex: 1, minHeight: 0 }}>
                     {viewMode === 'flat' ? (
                       <SidebarMenu>
                         {folders.length === 0 ? (

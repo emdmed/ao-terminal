@@ -42,7 +42,7 @@ function TreeNode({ node, expandedFolders, currentPath, onToggle, selectedFiles,
 
   return (
     <>
-      <SidebarMenuItem>
+      <SidebarMenuItem className="me-4">
         {node.is_dir ? (
           // Folder: clickable button to expand/collapse
           <SidebarMenuButton
