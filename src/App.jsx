@@ -55,6 +55,10 @@ function App() {
   const [searchResults, setSearchResults] = useState(null);
   const [allFiles, setAllFiles] = useState([]); // Flat list for indexing
 
+  // Git stats state
+  const [gitStats, setGitStats] = useState(new Map());
+  const [showGitChangesOnly, setShowGitChangesOnly] = useState(false);
+
   // Loading state
   const [treeLoading, setTreeLoading] = useState(false);
 
@@ -123,7 +127,7 @@ function App() {
       const cwd = await invoke('get_terminal_cwd', { sessionId: terminalSessionId });
       console.log('Loading tree from CWD:', cwd);
 
-      // Load ALL items recursively (NEW)
+      // Load ALL items recursively
       const allEntries = await invoke('read_directory_recursive', {
         path: cwd,
         maxDepth: 10,
@@ -132,12 +136,23 @@ function App() {
 
       console.log('Loaded', allEntries.length, 'items total');
 
+      // Fetch git stats
+      let gitStatsData = {};
+      try {
+        gitStatsData = await invoke('get_git_stats', { path: cwd });
+        console.log('Loaded git stats:', Object.keys(gitStatsData).length, 'files changed');
+      } catch (error) {
+        console.warn('Failed to load git stats:', error);
+        // Continue without git stats
+      }
+
       // Build hierarchical tree from flat list
       const treeNodes = buildTreeFromFlatList(allEntries, cwd);
 
       setTreeData(treeNodes);
       setCurrentPath(cwd);
       setAllFiles(allEntries);
+      setGitStats(new Map(Object.entries(gitStatsData)));
       setTreeLoading(false);
 
       // Initialize search index
@@ -214,6 +229,31 @@ function App() {
     setSearchResults(null);
   };
 
+  const handleToggleGitFilter = useCallback(() => {
+    setShowGitChangesOnly(prev => !prev);
+  }, []);
+
+  // Auto-expand all folders when git filter is enabled
+  useEffect(() => {
+    if (showGitChangesOnly && gitStats.size > 0) {
+      // Collect all parent folder paths of files with git changes
+      const foldersToExpand = new Set();
+
+      gitStats.forEach((stats, filePath) => {
+        // Walk up the directory tree and add all parent folders
+        let currentPath = filePath;
+        while (currentPath && currentPath !== '/') {
+          const lastSlash = currentPath.lastIndexOf('/');
+          if (lastSlash <= 0) break;
+          currentPath = currentPath.substring(0, lastSlash);
+          foldersToExpand.add(currentPath);
+        }
+      });
+
+      setExpandedFolders(foldersToExpand);
+    }
+  }, [showGitChangesOnly, gitStats]);
+
   // Debounced search effect
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -241,7 +281,7 @@ function App() {
     }
   }, [viewMode, sidebarOpen]);
 
-  // Keyboard shortcut for search focus (Ctrl+F) - for non-terminal focus
+  // Keyboard shortcuts - for non-terminal focus
   useEffect(() => {
     const handleKeyDown = (e) => {
       // Ctrl+F or Cmd+F to focus search in tree mode
@@ -249,6 +289,9 @@ function App() {
         e.preventDefault();
         searchInputRef.current?.focus();
       }
+
+      // Note: Ctrl+G is handled in the terminal component's keyboard handler
+      // to work both when terminal is focused and when sidebar is focused
     };
 
     window.addEventListener('keydown', handleKeyDown);
@@ -451,15 +494,54 @@ function App() {
     }
   };
 
+  // Helper function to filter tree by git changes
+  const filterTreeByGitChanges = (nodes, gitStatsMap) => {
+    const filterNodes = (nodes) => {
+      return nodes
+        .map(node => {
+          // Check if this file has git changes
+          const hasChanges = gitStatsMap.has(node.path);
+
+          // For directories, recursively filter children
+          let filteredChildren = node.children;
+          if (node.is_dir && node.children && Array.isArray(node.children)) {
+            filteredChildren = filterNodes(node.children);
+            // Include directory if it has any children with changes
+            if (filteredChildren.length > 0) {
+              return { ...node, children: filteredChildren };
+            }
+          }
+
+          // Include file if it has changes
+          if (!node.is_dir && hasChanges) {
+            return node;
+          }
+
+          return null;
+        })
+        .filter(Boolean);
+    };
+
+    return filterNodes(nodes);
+  };
+
   // Create filtered tree data for display
   const displayedTreeData = useMemo(() => {
-    if (!searchResults) {
-      return treeData;
+    let filtered = treeData;
+
+    // Apply search filter
+    if (searchResults) {
+      const matchingPaths = searchResults.map(r => r.path);
+      filtered = filterTreeBySearch(filtered, matchingPaths);
     }
 
-    const matchingPaths = searchResults.map(r => r.path);
-    return filterTreeBySearch(treeData, matchingPaths);
-  }, [treeData, searchResults]);
+    // Apply git changes filter
+    if (showGitChangesOnly && gitStats.size > 0) {
+      filtered = filterTreeByGitChanges(filtered, gitStats);
+    }
+
+    return filtered;
+  }, [treeData, searchResults, showGitChangesOnly, gitStats]);
 
   return (
     <SidebarProvider open={sidebarOpen} onOpenChange={setSidebarOpen} style={{ height: '100%' }}>
@@ -477,6 +559,8 @@ function App() {
                   onSearchClear={handleSearchClear}
                   showSearch={viewMode === 'tree'}
                   searchInputRef={searchInputRef}
+                  showGitChangesOnly={showGitChangesOnly}
+                  onToggleGitFilter={handleToggleGitFilter}
                 />
                 <SidebarGroup style={{ display: 'flex', flexDirection: 'column', flex: 1, minHeight: 0 }}>
                   <SidebarGroupContent className="p-1" style={{ overflowY: 'auto', flex: 1, minHeight: 0 }}>
@@ -496,6 +580,7 @@ function App() {
                           searchQuery={searchQuery}
                           expandedFolders={expandedFolders}
                           currentPath={currentPath}
+                          gitStats={gitStats}
                           onToggle={toggleFolder}
                           onSendToTerminal={sendFileToTerminal}
                           analyzedFiles={analyzedFiles}
@@ -526,6 +611,7 @@ function App() {
           theme={themes[currentTheme]}
           onSessionReady={(id) => setTerminalSessionId(id)}
           onSearchFocus={handleSearchFocus}
+          onToggleGitFilter={handleToggleGitFilter}
         />
       </Layout>
     </SidebarProvider>

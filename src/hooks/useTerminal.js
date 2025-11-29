@@ -6,7 +6,7 @@ import { invoke } from '@tauri-apps/api/core';
 import { listen } from '@tauri-apps/api/event';
 import '@xterm/xterm/css/xterm.css';
 
-export function useTerminal(terminalRef, theme, imperativeRef, onSearchFocus) {
+export function useTerminal(terminalRef, theme, imperativeRef, onSearchFocus, onToggleGitFilter) {
   const [terminal, setTerminal] = useState(null);
   const [fitAddon, setFitAddon] = useState(null);
   const [sessionId, setSessionId] = useState(null);
@@ -36,22 +36,6 @@ export function useTerminal(terminalRef, theme, imperativeRef, onSearchFocus) {
     // Open terminal in DOM
     term.open(terminalRef.current);
 
-    // Attach custom keyboard event handler to intercept Ctrl+F
-    term.attachCustomKeyEventHandler((event) => {
-      // Intercept Ctrl+F or Cmd+F
-      if ((event.ctrlKey || event.metaKey) && event.key === 'f' && event.type === 'keydown') {
-        event.preventDefault();
-        // Call the callback to focus search input
-        if (onSearchFocus) {
-          onSearchFocus();
-        }
-        // Return false to prevent xterm from processing this event
-        return false;
-      }
-      // Return true to allow xterm to process other events normally
-      return true;
-    });
-
     // Fit terminal to container
     fit.fit();
 
@@ -62,6 +46,39 @@ export function useTerminal(terminalRef, theme, imperativeRef, onSearchFocus) {
       term.dispose();
     };
   }, [terminalRef]);
+
+  // Attach keyboard event handler (updates when callbacks change)
+  useEffect(() => {
+    if (!terminal) return;
+
+    const disposable = terminal.attachCustomKeyEventHandler((event) => {
+      // Intercept Ctrl+F or Cmd+F
+      if ((event.ctrlKey || event.metaKey) && event.key === 'f' && event.type === 'keydown') {
+        event.preventDefault();
+        if (onSearchFocus) {
+          onSearchFocus();
+        }
+        return false;
+      }
+
+      // Intercept Ctrl+G or Cmd+G
+      if ((event.ctrlKey || event.metaKey) && event.key === 'g' && event.type === 'keydown') {
+        event.preventDefault();
+        if (onToggleGitFilter) {
+          onToggleGitFilter();
+        }
+        return false;
+      }
+
+      return true;
+    });
+
+    return () => {
+      if (disposable) {
+        disposable.dispose();
+      }
+    };
+  }, [terminal, onSearchFocus, onToggleGitFilter]);
 
   // Spawn terminal process
   useEffect(() => {

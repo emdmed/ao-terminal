@@ -11,6 +11,7 @@ export function FileTree({
   searchQuery,
   expandedFolders,
   currentPath,
+  gitStats,
   onToggle,
   onSendToTerminal,
   analyzedFiles,
@@ -45,6 +46,7 @@ export function FileTree({
           node={node}
           expandedFolders={expandedFolders}
           currentPath={currentPath}
+          gitStats={gitStats}
           onToggle={onToggle}
           onSendToTerminal={onSendToTerminal}
           analyzedFiles={analyzedFiles}
@@ -62,6 +64,7 @@ function TreeNode({
   node,
   expandedFolders,
   currentPath,
+  gitStats,
   onToggle,
   onSendToTerminal,
   analyzedFiles,
@@ -80,6 +83,10 @@ function TreeNode({
   const isAnalysisExpanded = expandedAnalysis && expandedAnalysis.has(node.path);
   const analysisData = analyzedFiles && analyzedFiles.get(node.path);
   const isSupportedForAnalysis = !node.is_dir && /\.(jsx?|tsx?)$/i.test(node.name);
+
+  // Git stats
+  const stats = gitStats?.get(node.path);
+  const hasGitChanges = stats && (stats.added > 0 || stats.deleted > 0);
 
   return (
     <>
@@ -114,6 +121,15 @@ function TreeNode({
             <div className="flex items-center justify-start flex-1 min-w-0">
               <File className="w-3 h-3 ml-1 mr-1.5 flex-shrink-0" />
               <span className="truncate text-xs">{node.name}</span>
+
+              {/* Git stats badge */}
+              {hasGitChanges && (
+                <span className="ml-2 text-[0.65rem] font-mono flex-shrink-0">
+                  <span style={{ color: '#98BB6C' }}>+{stats.added}</span>
+                  {' '}
+                  <span style={{ color: '#C34043' }}>-{stats.deleted}</span>
+                </span>
+              )}
             </div>
 
             {/* Action buttons */}
@@ -165,6 +181,7 @@ function TreeNode({
             node={child}
             expandedFolders={expandedFolders}
             currentPath={currentPath}
+            gitStats={gitStats}
             onToggle={onToggle}
             onSendToTerminal={onSendToTerminal}
             analyzedFiles={analyzedFiles}

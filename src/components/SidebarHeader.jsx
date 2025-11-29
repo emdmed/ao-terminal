@@ -1,7 +1,7 @@
 import { Badge } from './ui/badge';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
-import { ChevronUp, Search, X } from 'lucide-react';
+import { ChevronUp, Search, X, GitBranch } from 'lucide-react';
 
 export function SidebarHeader({
   viewMode,
@@ -11,7 +11,9 @@ export function SidebarHeader({
   onSearchChange,
   onSearchClear,
   showSearch,
-  searchInputRef
+  searchInputRef,
+  showGitChangesOnly,
+  onToggleGitFilter
 }) {
   return (
     <div style={{
@@ -32,16 +34,28 @@ export function SidebarHeader({
         <Badge variant={viewMode === 'tree' ? 'info' : 'success'}>
           {viewMode === 'tree' ? 'CLAUDE MODE' : 'NAVIGATION MODE'}
         </Badge>
-        {currentPath && currentPath !== '/' && (
-          <Button
-            onClick={onNavigateParent}
-            size="icon-xs"
-            variant="ghost"
-            title="Go to parent directory"
-          >
-            <ChevronUp className="w-3 h-3" />
-          </Button>
-        )}
+        <div style={{ display: 'flex', gap: '4px' }}>
+          {showSearch && (
+            <Button
+              onClick={onToggleGitFilter}
+              size="icon-xs"
+              variant={showGitChangesOnly ? 'default' : 'ghost'}
+              title={showGitChangesOnly ? "Show all files (Ctrl+G)" : "Show only files with git changes (Ctrl+G)"}
+            >
+              <GitBranch className="w-3 h-3" />
+            </Button>
+          )}
+          {currentPath && currentPath !== '/' && (
+            <Button
+              onClick={onNavigateParent}
+              size="icon-xs"
+              variant="ghost"
+              title="Go to parent directory"
+            >
+              <ChevronUp className="w-3 h-3" />
+            </Button>
+          )}
+        </div>
       </div>
 
       {/* Search input - only in tree mode */}

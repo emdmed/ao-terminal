@@ -3,7 +3,8 @@ use std::path::PathBuf;
 use serde::Serialize;
 use crate::state::AppState;
 use walkdir::WalkDir;
-use std::collections::HashSet;
+use std::collections::{HashSet, HashMap};
+use std::process::Command;
 
 #[derive(Serialize)]
 pub struct DirectoryEntry {
@@ -19,6 +20,12 @@ pub struct RecursiveDirectoryEntry {
     is_dir: bool,
     depth: usize,
     parent_path: String,
+}
+
+#[derive(Serialize, Clone, Debug)]
+pub struct GitStats {
+    pub added: usize,
+    pub deleted: usize,
 }
 
 #[tauri::command]
@@ -210,4 +217,59 @@ pub fn read_directory_recursive(
     });
 
     Ok(entries)
+}
+
+fn get_git_diff_stats(repo_path: &PathBuf) -> Result<HashMap<String, GitStats>, String> {
+    // Check if .git directory exists
+    let git_dir = repo_path.join(".git");
+    if !git_dir.exists() {
+        return Ok(HashMap::new());
+    }
+
+    // Run: git diff HEAD --numstat
+    let output = Command::new("git")
+        .arg("diff")
+        .arg("HEAD")
+        .arg("--numstat")
+        .current_dir(repo_path)
+        .output()
+        .map_err(|e| format!("Failed to execute git command: {}", e))?;
+
+    if !output.status.success() {
+        eprintln!("Git diff command failed: {}", String::from_utf8_lossy(&output.stderr));
+        return Ok(HashMap::new());
+    }
+
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    let mut stats_map = HashMap::new();
+
+    for line in stdout.lines() {
+        let parts: Vec<&str> = line.split('\t').collect();
+        if parts.len() != 3 {
+            continue;
+        }
+
+        let added = parts[0].parse::<usize>().unwrap_or(0);
+        let deleted = parts[1].parse::<usize>().unwrap_or(0);
+        let relative_path = parts[2];
+
+        // Convert relative path to absolute
+        let absolute_path = repo_path.join(relative_path);
+        let absolute_path_str = absolute_path.to_string_lossy().to_string();
+
+        stats_map.insert(absolute_path_str, GitStats { added, deleted });
+    }
+
+    Ok(stats_map)
+}
+
+#[tauri::command]
+pub fn get_git_stats(path: Option<String>) -> Result<HashMap<String, GitStats>, String> {
+    let repo_path = if let Some(p) = path {
+        PathBuf::from(p)
+    } else {
+        std::env::current_dir().map_err(|e| format!("Failed to get current directory: {}", e))?
+    };
+
+    get_git_diff_stats(&repo_path)
 }
