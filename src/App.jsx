@@ -475,25 +475,18 @@ function App() {
                   <Badge variant={viewMode === 'tree' ? 'info' : 'success'}>
                     {viewMode === 'tree' ? 'CLAUDE MODE' : 'NAVIGATION MODE'}
                   </Badge>
+                  {currentPath && currentPath !== '/' && (
+                    <Button
+                      onClick={navigateToParent}
+                      size="icon-xs"
+                      variant="ghost"
+                      title="Go to parent directory"
+                    >
+                      <ChevronUp className="w-3 h-3" />
+                    </Button>
+                  )}
                 </div>
                 <SidebarGroup style={{ display: 'flex', flexDirection: 'column', flex: 1, minHeight: 0 }}>
-                  <SidebarGroupLabel style={{ flexShrink: 0 }}>
-                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%' }}>
-                      <div className="truncate text-xs">
-                        {currentPath || 'No path'}
-                      </div>
-                      {currentPath && currentPath !== '/' && (
-                        <Button
-                          onClick={navigateToParent}
-                          size="icon-xs"
-                          variant="ghost"
-                          title="Go to parent directory"
-                        >
-                          <ChevronUp className="w-3 h-3" />
-                        </Button>
-                      )}
-                    </div>
-                  </SidebarGroupLabel>
                   <SidebarGroupContent className="p-1" style={{ overflowY: 'auto', flex: 1, minHeight: 0 }}>
                     {viewMode === 'flat' ? (
                       <SidebarMenu>
