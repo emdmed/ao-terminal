@@ -6,7 +6,7 @@ import { invoke } from '@tauri-apps/api/core';
 import { listen } from '@tauri-apps/api/event';
 import '@xterm/xterm/css/xterm.css';
 
-export function useTerminal(terminalRef, theme, imperativeRef) {
+export function useTerminal(terminalRef, theme, imperativeRef, onSearchFocus) {
   const [terminal, setTerminal] = useState(null);
   const [fitAddon, setFitAddon] = useState(null);
   const [sessionId, setSessionId] = useState(null);
@@ -35,6 +35,22 @@ export function useTerminal(terminalRef, theme, imperativeRef) {
 
     // Open terminal in DOM
     term.open(terminalRef.current);
+
+    // Attach custom keyboard event handler to intercept Ctrl+F
+    term.attachCustomKeyEventHandler((event) => {
+      // Intercept Ctrl+F or Cmd+F
+      if ((event.ctrlKey || event.metaKey) && event.key === 'f' && event.type === 'keydown') {
+        event.preventDefault();
+        // Call the callback to focus search input
+        if (onSearchFocus) {
+          onSearchFocus();
+        }
+        // Return false to prevent xterm from processing this event
+        return false;
+      }
+      // Return true to allow xterm to process other events normally
+      return true;
+    });
 
     // Fit terminal to container
     fit.fit();

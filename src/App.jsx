@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useMemo, useCallback } from "react";
 import { Terminal } from "./components/Terminal";
 import { Layout } from "./components/Layout";
 import { StatusBar } from "./components/StatusBar";
@@ -10,6 +10,7 @@ import { invoke } from "@tauri-apps/api/core";
 import { useCwdMonitor } from "./hooks/useCwdMonitor";
 import { useFlatViewNavigation } from "./hooks/useFlatViewNavigation";
 import { useViewModeShortcuts } from "./hooks/useViewModeShortcuts";
+import { useFileSearch } from "./hooks/useFileSearch";
 import { analyzeJSFile } from "./utils/fileAnalyzer";
 import {
   Sidebar,
@@ -34,6 +35,9 @@ function App() {
   // Ref to access terminal's imperative methods
   const terminalRef = useRef(null);
 
+  // Ref for search input
+  const searchInputRef = useRef(null);
+
   // Flat view navigation hook
   const { folders, currentPath, setCurrentPath, loadFolders, navigateToParent } = useFlatViewNavigation(terminalSessionId);
 
@@ -46,6 +50,63 @@ function App() {
   const [analyzedFiles, setAnalyzedFiles] = useState(new Map());
   const [expandedAnalysis, setExpandedAnalysis] = useState(new Set());
 
+  // Search state
+  const [searchQuery, setSearchQuery] = useState('');
+  const [searchResults, setSearchResults] = useState(null);
+  const [allFiles, setAllFiles] = useState([]); // Flat list for indexing
+
+  // Loading state
+  const [treeLoading, setTreeLoading] = useState(false);
+
+  // Search hook
+  const { initializeSearch, search, clearSearch } = useFileSearch();
+
+  // Helper function to build tree from flat list
+  const buildTreeFromFlatList = (flatList, rootPath) => {
+    const nodeMap = new Map();
+
+    // Initialize all nodes
+    flatList.forEach(entry => {
+      nodeMap.set(entry.path, {
+        ...entry,
+        children: entry.is_dir ? [] : undefined,
+        depth: entry.depth
+      });
+    });
+
+    const rootNodes = [];
+
+    // Build parent-child relationships
+    flatList.forEach(entry => {
+      const node = nodeMap.get(entry.path);
+
+      if (entry.parent_path === rootPath || !entry.parent_path) {
+        rootNodes.push(node);
+      } else {
+        const parent = nodeMap.get(entry.parent_path);
+        if (parent && parent.children) {
+          parent.children.push(node);
+        }
+      }
+    });
+
+    // Sort recursively: folders first, alphabetically
+    const sortChildren = (nodes) => {
+      nodes.forEach(node => {
+        if (node.children && node.children.length > 0) {
+          sortChildren(node.children);
+        }
+      });
+      nodes.sort((a, b) => {
+        if (a.is_dir !== b.is_dir) return a.is_dir ? -1 : 1;
+        return a.name.toLowerCase().localeCompare(b.name.toLowerCase());
+      });
+    };
+
+    sortChildren(rootNodes);
+    return rootNodes;
+  };
+
   // Tree view helper functions (defined early for use in hooks)
   const loadTreeData = async () => {
     try {
@@ -56,27 +117,36 @@ function App() {
         return;
       }
 
+      setTreeLoading(true);
+
       // Get terminal's current CWD
       const cwd = await invoke('get_terminal_cwd', { sessionId: terminalSessionId });
       console.log('Loading tree from CWD:', cwd);
 
-      // Load top-level items
-      const entries = await invoke('read_directory', { path: cwd });
-      console.log('Loaded', entries.length, 'items for tree');
+      // Load ALL items recursively (NEW)
+      const allEntries = await invoke('read_directory_recursive', {
+        path: cwd,
+        maxDepth: 10,
+        maxFiles: 10000
+      });
 
-      // Convert to tree nodes
-      const treeNodes = entries.map(item => ({
-        ...item,
-        children: item.is_dir ? null : undefined, // null = not loaded, undefined = not a directory
-        depth: 0
-      }));
+      console.log('Loaded', allEntries.length, 'items total');
+
+      // Build hierarchical tree from flat list
+      const treeNodes = buildTreeFromFlatList(allEntries, cwd);
 
       setTreeData(treeNodes);
       setCurrentPath(cwd);
+      setAllFiles(allEntries);
+      setTreeLoading(false);
+
+      // Initialize search index
+      initializeSearch(allEntries);
     } catch (error) {
       console.error('Failed to load tree data:', error);
       setTreeData([]);
       setCurrentPath('Error loading directory');
+      setTreeLoading(false);
     }
   };
 
@@ -126,13 +196,64 @@ function App() {
       if (viewMode === 'flat') {
         loadFolders();
       } else if (viewMode === 'tree') {
-        // For tree view, expand to the new CWD path
-        expandToPath(detectedCwd);
-        // Also update currentPath
-        setCurrentPath(detectedCwd);
+        // For tree view, reload tree and clear search
+        loadTreeData();
+        setSearchQuery('');
+        setSearchResults(null);
       }
     }
   }, [detectedCwd, viewMode]);
+
+  // Search handler functions
+  const handleSearchChange = (query) => {
+    setSearchQuery(query);
+  };
+
+  const handleSearchClear = () => {
+    setSearchQuery('');
+    setSearchResults(null);
+  };
+
+  // Debounced search effect
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      if (!searchQuery || searchQuery.trim() === '') {
+        setSearchResults(null);
+        return;
+      }
+
+      const results = search(searchQuery);
+      setSearchResults(results);
+
+      // Auto-expand matching paths
+      if (results && results.length > 0) {
+        expandSearchResults(results);
+      }
+    }, 200); // 200ms debounce
+
+    return () => clearTimeout(timer);
+  }, [searchQuery, search]);
+
+  // Handle search focus from keyboard shortcut
+  const handleSearchFocus = useCallback(() => {
+    if (viewMode === 'tree' && sidebarOpen) {
+      searchInputRef.current?.focus();
+    }
+  }, [viewMode, sidebarOpen]);
+
+  // Keyboard shortcut for search focus (Ctrl+F) - for non-terminal focus
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      // Ctrl+F or Cmd+F to focus search in tree mode
+      if ((e.ctrlKey || e.metaKey) && e.key === 'f' && viewMode === 'tree' && sidebarOpen) {
+        e.preventDefault();
+        searchInputRef.current?.focus();
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [viewMode, sidebarOpen]);
 
   // Helper functions for multi-file copy
   const getRelativePath = (absolutePath, cwdPath) => {
@@ -183,54 +304,71 @@ function App() {
     }
   };
 
-  // Tree view helper functions
-  const findNodeInTree = (tree, targetPath) => {
-    for (const node of tree) {
-      if (node.path === targetPath) {
-        return node;
-      }
-      if (node.children && Array.isArray(node.children)) {
-        const found = findNodeInTree(node.children, targetPath);
-        if (found) return found;
-      }
-    }
-    return null;
-  };
 
-  const updateTreeNode = (tree, parentPath, newChildren) => {
-    return tree.map(node => {
-      if (node.path === parentPath) {
-        // Found the parent node - update its children
-        return {
-          ...node,
-          children: newChildren.map(child => ({
-            ...child,
-            children: child.is_dir ? null : undefined, // null = not loaded, undefined = not a directory
-            depth: (node.depth || 0) + 1
-          }))
-        };
+  // Tree filtering function for search
+  const filterTreeBySearch = (nodes, matchingPaths) => {
+    if (!matchingPaths || matchingPaths.length === 0) {
+      return nodes;
+    }
+
+    const matchingSet = new Set(matchingPaths);
+    const parentPathsSet = new Set();
+
+    // Build set of all parent paths
+    matchingPaths.forEach(path => {
+      let currentPath = path;
+      while (currentPath && currentPath !== '/') {
+        const lastSlash = currentPath.lastIndexOf('/');
+        if (lastSlash <= 0) break;
+        currentPath = currentPath.substring(0, lastSlash);
+        parentPathsSet.add(currentPath);
       }
-      if (node.children && Array.isArray(node.children)) {
-        // Recursively search in children
-        return {
-          ...node,
-          children: updateTreeNode(node.children, parentPath, newChildren)
-        };
-      }
-      return node;
     });
+
+    const filterNodes = (nodes) => {
+      return nodes
+        .map(node => {
+          const isMatch = matchingSet.has(node.path);
+          const isParentOfMatch = parentPathsSet.has(node.path);
+
+          if (!isMatch && !isParentOfMatch) {
+            return null; // Filter out
+          }
+
+          let filteredChildren = node.children;
+          if (node.children && Array.isArray(node.children)) {
+            filteredChildren = filterNodes(node.children);
+          }
+
+          return { ...node, children: filteredChildren };
+        })
+        .filter(Boolean);
+    };
+
+    return filterNodes(nodes);
   };
 
-  const loadTreeChildren = async (parentPath) => {
-    try {
-      const entries = await invoke('read_directory', { path: parentPath });
-      console.log('Loaded', entries.length, 'children for:', parentPath);
+  // Auto-expand function for search results
+  const expandSearchResults = (results) => {
+    const pathsToExpand = new Set();
 
-      // Update tree data with new children
-      setTreeData(prevTree => updateTreeNode(prevTree, parentPath, entries));
-    } catch (error) {
-      console.error('Failed to load tree children for', parentPath, error);
-    }
+    // Expand all parent folders of matches
+    results.forEach(result => {
+      let currentPath = result.path;
+      while (currentPath && currentPath !== '/') {
+        const lastSlash = currentPath.lastIndexOf('/');
+        if (lastSlash <= 0) break;
+        currentPath = currentPath.substring(0, lastSlash);
+        pathsToExpand.add(currentPath);
+      }
+
+      // Also expand matching folders themselves
+      if (result.is_dir) {
+        pathsToExpand.add(result.path);
+      }
+    });
+
+    setExpandedFolders(pathsToExpand);
   };
 
   const toggleFolder = (folderPath) => {
@@ -242,52 +380,11 @@ function App() {
       } else {
         // Expand
         next.add(folderPath);
-
-        // Lazy load children if not already loaded
-        const node = findNodeInTree(treeData, folderPath);
-        if (node && node.children === null) {
-          loadTreeChildren(folderPath);
-        }
       }
       return next;
     });
   };
 
-  const expandToPath = async (targetPath) => {
-    if (!targetPath || targetPath === '/') return;
-
-    try {
-      // Split path into segments
-      const segments = targetPath.split('/').filter(Boolean);
-
-      // Build paths to expand: /home, /home/user, /home/user/project, etc.
-      let currentSegmentPath = '';
-      const pathsToExpand = [];
-
-      for (const segment of segments) {
-        currentSegmentPath += '/' + segment;
-        pathsToExpand.push(currentSegmentPath);
-      }
-
-      // Expand each path in sequence
-      for (const pathToExpand of pathsToExpand) {
-        // Add to expanded set
-        setExpandedFolders(prev => new Set(prev).add(pathToExpand));
-
-        // Load children if not already loaded
-        const node = findNodeInTree(treeData, pathToExpand);
-        if (node && node.children === null) {
-          await loadTreeChildren(pathToExpand);
-          // Wait a bit for state to update before continuing
-          await new Promise(resolve => setTimeout(resolve, 50));
-        }
-      }
-
-      console.log('Expanded tree to:', targetPath);
-    } catch (error) {
-      console.error('Failed to expand to path:', targetPath, error);
-    }
-  };
 
   // File analysis functions
   const analyzeFile = async (filePath) => {
@@ -354,6 +451,16 @@ function App() {
     }
   };
 
+  // Create filtered tree data for display
+  const displayedTreeData = useMemo(() => {
+    if (!searchResults) {
+      return treeData;
+    }
+
+    const matchingPaths = searchResults.map(r => r.path);
+    return filterTreeBySearch(treeData, matchingPaths);
+  }, [treeData, searchResults]);
+
   return (
     <SidebarProvider open={sidebarOpen} onOpenChange={setSidebarOpen} style={{ height: '100%' }}>
       <Layout
@@ -365,6 +472,11 @@ function App() {
                   viewMode={viewMode}
                   currentPath={currentPath}
                   onNavigateParent={navigateToParent}
+                  searchQuery={searchQuery}
+                  onSearchChange={handleSearchChange}
+                  onSearchClear={handleSearchClear}
+                  showSearch={viewMode === 'tree'}
+                  searchInputRef={searchInputRef}
                 />
                 <SidebarGroup style={{ display: 'flex', flexDirection: 'column', flex: 1, minHeight: 0 }}>
                   <SidebarGroupContent className="p-1" style={{ overflowY: 'auto', flex: 1, minHeight: 0 }}>
@@ -374,18 +486,25 @@ function App() {
                         onFolderClick={loadFolders}
                       />
                     ) : (
-                      <FileTree
-                        nodes={treeData}
-                        expandedFolders={expandedFolders}
-                        currentPath={currentPath}
-                        onToggle={toggleFolder}
-                        onSendToTerminal={sendFileToTerminal}
-                        analyzedFiles={analyzedFiles}
-                        expandedAnalysis={expandedAnalysis}
-                        onAnalyzeFile={analyzeFile}
-                        onToggleAnalysis={toggleAnalysisExpansion}
-                        onSendAnalysisItem={sendAnalysisItemToTerminal}
-                      />
+                      treeLoading ? (
+                        <div className="p-4 text-center">
+                          <div className="text-sm opacity-60">Loading directory tree...</div>
+                        </div>
+                      ) : (
+                        <FileTree
+                          nodes={displayedTreeData}
+                          searchQuery={searchQuery}
+                          expandedFolders={expandedFolders}
+                          currentPath={currentPath}
+                          onToggle={toggleFolder}
+                          onSendToTerminal={sendFileToTerminal}
+                          analyzedFiles={analyzedFiles}
+                          expandedAnalysis={expandedAnalysis}
+                          onAnalyzeFile={analyzeFile}
+                          onToggleAnalysis={toggleAnalysisExpansion}
+                          onSendAnalysisItem={sendAnalysisItemToTerminal}
+                        />
+                      )
                     )}
                   </SidebarGroupContent>
                 </SidebarGroup>
@@ -406,6 +525,7 @@ function App() {
           ref={terminalRef}
           theme={themes[currentTheme]}
           onSessionReady={(id) => setTerminalSessionId(id)}
+          onSearchFocus={handleSearchFocus}
         />
       </Layout>
     </SidebarProvider>

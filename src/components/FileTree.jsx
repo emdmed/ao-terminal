@@ -8,6 +8,7 @@ import { Folder, File, ChevronRight, ChevronDown, CornerDownRight, ArrowDownFrom
 
 export function FileTree({
   nodes,
+  searchQuery,
   expandedFolders,
   currentPath,
   onToggle,
@@ -21,8 +22,17 @@ export function FileTree({
 
   if (!nodes || nodes.length === 0) {
     return (
-      <div className="p-1 opacity-50 text-[0.7rem]">
-        No files or folders found
+      <div className="p-4 text-center opacity-50 text-xs">
+        {searchQuery ? (
+          <>
+            <div>No files match "{searchQuery}"</div>
+            <div className="mt-2 text-[0.65rem]">
+              Try a different search term
+            </div>
+          </>
+        ) : (
+          'No files or folders found'
+        )}
       </div>
     );
   }

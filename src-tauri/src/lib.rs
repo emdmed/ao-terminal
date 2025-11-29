@@ -4,7 +4,7 @@ mod fs;
 
 use state::create_state;
 use pty::commands::{spawn_terminal, write_to_terminal, resize_terminal, close_terminal};
-use fs::{read_directory, get_terminal_cwd, read_file_content};
+use fs::{read_directory, get_terminal_cwd, read_file_content, read_directory_recursive};
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
@@ -18,7 +18,8 @@ pub fn run() {
             close_terminal,
             read_directory,
             get_terminal_cwd,
-            read_file_content
+            read_file_content,
+            read_directory_recursive
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
