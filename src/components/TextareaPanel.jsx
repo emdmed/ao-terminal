@@ -25,6 +25,11 @@ export function TextareaPanel({
     }
   };
 
+  const handleSend = () => {
+    onSend();
+    onClearAllFiles();
+  };
+
   const fileArray = Array.from(selectedFiles || new Set());
   const filesWithRelativePaths = fileArray.map(absPath => ({
     absolute: absPath,
@@ -51,8 +56,18 @@ export function TextareaPanel({
       <div className="flex gap-2 min-h-[120px] max-h-[300px]">
         {fileArray.length > 0 && (
           <div className="flex flex-col w-1/3 p-1 gap-1 overflow-y-auto flex-shrink-0">
-            <div className="text-xs font-semibold opacity-60 mb-1">
-              Selected Files ({fileArray.length})
+            <div className="flex items-center justify-between gap-2 mb-1">
+              <div className="text-xs font-semibold opacity-60">
+                Selected Files ({fileArray.length})
+              </div>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={onClearAllFiles}
+                className="text-xs h-5 px-2"
+              >
+                Clear all
+              </Button>
             </div>
             <div className="flex-1 overflow-y-auto space-y-2">
               {filesWithRelativePaths.map((file) => {
@@ -88,8 +103,8 @@ export function TextareaPanel({
                         >
                           E
                         </Button>
-                        <span className="text-xs truncate" title={file.relative}>
-                          {file.relative}
+                        <span className="text-xs truncate" title={file.absolute}>
+                          {file.name}
                         </span>
                       </div>
                       <button
@@ -107,14 +122,6 @@ export function TextareaPanel({
                 );
               })}
             </div>
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={onClearAllFiles}
-              className="w-full text-xs mt-1"
-            >
-              Clear all
-            </Button>
           </div>
         )}
 
@@ -141,7 +148,7 @@ export function TextareaPanel({
         </Button>
         <Button
           size="sm"
-          onClick={onSend}
+          onClick={handleSend}
           disabled={disabled || (!value?.trim() && fileArray.length === 0)}
         >
           <Send className="h-4 w-4 mr-2" />

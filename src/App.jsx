@@ -756,6 +756,7 @@ function App() {
                           onSendAnalysisItem={sendAnalysisItemToTerminal}
                           selectedFiles={selectedFiles}
                           onToggleFileSelection={toggleFileSelection}
+                          isTextareaPanelOpen={textareaVisible}
                         />
                       )
                     )}

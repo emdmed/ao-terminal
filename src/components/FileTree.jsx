@@ -20,7 +20,8 @@ export function FileTree({
   onToggleAnalysis,
   onSendAnalysisItem,
   selectedFiles,
-  onToggleFileSelection
+  onToggleFileSelection,
+  isTextareaPanelOpen
 }) {
 
   if (!nodes || nodes.length === 0) {
@@ -58,6 +59,7 @@ export function FileTree({
           onSendAnalysisItem={onSendAnalysisItem}
           selectedFiles={selectedFiles}
           onToggleFileSelection={onToggleFileSelection}
+          isTextareaPanelOpen={isTextareaPanelOpen}
         />
       ))}
     </SidebarMenu>
@@ -77,7 +79,8 @@ function TreeNode({
   onToggleAnalysis,
   onSendAnalysisItem,
   selectedFiles,
-  onToggleFileSelection
+  onToggleFileSelection,
+  isTextareaPanelOpen
 }) {
   const isExpanded = expandedFolders.has(node.path);
   const isCurrentPath = currentPath === node.path;
@@ -155,35 +158,35 @@ function TreeNode({
                 </button>
               )}
 
-              {/* Add to textarea button - only for files */}
+              {/* Unified button - behavior depends on textarea panel state */}
               {!node.is_dir && (
                 <button
                   className={`p-1 transition-opacity duration-200 rounded ${
-                    isSelected
+                    isTextareaPanelOpen && isSelected
                       ? 'opacity-100 bg-blue-500/30 hover:bg-blue-500/40'
                       : 'opacity-60 hover:opacity-100 hover:bg-white/10'
                   }`}
                   onClick={(e) => {
                     e.stopPropagation();
-                    onToggleFileSelection(node.path);
+                    if (isTextareaPanelOpen) {
+                      onToggleFileSelection(node.path);
+                    } else {
+                      onSendToTerminal(node.path);
+                    }
                   }}
-                  title={isSelected ? "Remove from textarea" : "Add to textarea"}
+                  title={
+                    isTextareaPanelOpen
+                      ? (isSelected ? "Remove from file list" : "Add to file list")
+                      : "Send path to terminal"
+                  }
                 >
-                  <Plus className={`w-3 h-3 ${isSelected ? 'text-blue-400' : ''}`} />
+                  {isTextareaPanelOpen ? (
+                    <Plus className={`w-3 h-3 ${isSelected ? 'text-blue-400' : ''}`} />
+                  ) : (
+                    <CornerDownRight className="w-3 h-3" />
+                  )}
                 </button>
               )}
-
-              {/* Send to terminal button */}
-              <button
-                className="p-1 transition-opacity duration-200 opacity-60 hover:opacity-100 hover:bg-white/10 rounded"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  onSendToTerminal(node.path);
-                }}
-                title="Send path to terminal"
-              >
-                <CornerDownRight className="w-3 h-3" />
-              </button>
             </div>
           </div>
         )}
@@ -216,6 +219,7 @@ function TreeNode({
             onSendAnalysisItem={onSendAnalysisItem}
             selectedFiles={selectedFiles}
             onToggleFileSelection={onToggleFileSelection}
+            isTextareaPanelOpen={isTextareaPanelOpen}
           />
         ))
       )}
