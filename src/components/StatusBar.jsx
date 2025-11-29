@@ -1,8 +1,4 @@
-import { Badge } from './ui/badge';
-
 export const StatusBar = ({ viewMode, currentPath, sessionId, theme }) => {
-  const modeLabel = viewMode === 'tree' ? 'CLAUDE MODE' : 'NAVIGATION MODE';
-
   return (
     <div
       className="flex items-center justify-between px-4 py-2 border-t text-xs font-mono"
@@ -13,31 +9,11 @@ export const StatusBar = ({ viewMode, currentPath, sessionId, theme }) => {
         height: '32px',
       }}
     >
-      {/* Left section: Mode indicator */}
-      <div className="flex items-center gap-2">
-        <Badge
-          variant="outline"
-          style={{
-            backgroundColor: viewMode === 'tree' ? '#7E9CD8' : '#E6C384',
-            color: '#1F1F28',
-            border: 'none',
-            fontSize: '0.65rem',
-            padding: '0.15rem 0.5rem',
-          }}
-        >
-          {modeLabel}
-        </Badge>
-      </div>
-
-      {/* Center section: Current path */}
-      <div
-        className="flex-1 px-4 overflow-hidden whitespace-nowrap"
-        style={{
-          textOverflow: 'ellipsis',
-          textAlign: 'center',
-        }}
-      >
-        {currentPath || '~'}
+      {/* Left section: Current path */}
+      <div className="flex items-center gap-2 overflow-hidden">
+        <span className="overflow-hidden whitespace-nowrap" style={{ textOverflow: 'ellipsis' }}>
+          {currentPath || '~'}
+        </span>
       </div>
 
       {/* Right section: Session status */}
