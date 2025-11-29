@@ -50,7 +50,7 @@ export function TextareaPanel({
 
       <div className="flex gap-2 min-h-[120px] max-h-[300px]">
         {fileArray.length > 0 && (
-          <div className="flex flex-col w-[200px] border border-input rounded-md p-2 gap-1 overflow-y-auto flex-shrink-0">
+          <div className="flex flex-col w-1/3 p-1 gap-1 overflow-y-auto flex-shrink-0">
             <div className="text-xs font-semibold opacity-60 mb-1">
               Selected Files ({fileArray.length})
             </div>
@@ -58,10 +58,36 @@ export function TextareaPanel({
               {filesWithRelativePaths.map((file) => {
                 const currentState = fileStates?.get(file.absolute) || 'modify';
                 return (
-                  <div key={file.absolute} className="flex flex-col gap-1 px-2 py-1.5 hover:bg-white/5 rounded border border-input/50">
+                  <div key={file.absolute} className="flex flex-col gap-1 p-0 py-1.5 me-4">
                     <div className="flex items-center justify-between gap-2">
                       <div className="flex items-center gap-1 min-w-0 flex-1">
-                        <File className="w-3 h-3 flex-shrink-0" />
+                        <Button
+                          onClick={() => onSetFileState(file.absolute, 'modify')}
+                          size="icon-xs"
+                          className="w-4 h-4"
+                          variant={currentState === "modify" ? "" : "outline"}
+                          title="Modify this file"
+                        >
+                          M
+                        </Button>
+                        <Button
+                          onClick={() => onSetFileState(file.absolute, 'do-not-modify')}
+                          size="icon-xs"
+                          variant={currentState === "do-not-modify" ? "destructive" : "outline"}
+                          className="w-4 h-4"
+                          title="Do not modify this file"
+                        >
+                          D
+                        </Button>
+                        <Button
+                          onClick={() => onSetFileState(file.absolute, 'use-as-example')}
+                          size="icon-xs"
+                          variant={currentState === "use-as-example" ? "" : "outline"}
+                          className="w-4 h-4"
+                          title="Use as example"
+                        >
+                          E
+                        </Button>
                         <span className="text-xs truncate" title={file.relative}>
                           {file.relative}
                         </span>
@@ -75,39 +101,7 @@ export function TextareaPanel({
                       </button>
                     </div>
                     <div className="flex gap-1">
-                      <button
-                        onClick={() => onSetFileState(file.absolute, 'modify')}
-                        className={`px-1.5 py-0.5 text-[0.65rem] rounded transition-colors ${
-                          currentState === 'modify'
-                            ? 'bg-blue-500/30 text-blue-400 font-semibold'
-                            : 'bg-white/5 opacity-60 hover:opacity-100'
-                        }`}
-                        title="Modify this file"
-                      >
-                        M
-                      </button>
-                      <button
-                        onClick={() => onSetFileState(file.absolute, 'do-not-modify')}
-                        className={`px-1.5 py-0.5 text-[0.65rem] rounded transition-colors ${
-                          currentState === 'do-not-modify'
-                            ? 'bg-red-500/30 text-red-400 font-semibold'
-                            : 'bg-white/5 opacity-60 hover:opacity-100'
-                        }`}
-                        title="Do not modify this file"
-                      >
-                        D
-                      </button>
-                      <button
-                        onClick={() => onSetFileState(file.absolute, 'use-as-example')}
-                        className={`px-1.5 py-0.5 text-[0.65rem] rounded transition-colors ${
-                          currentState === 'use-as-example'
-                            ? 'bg-green-500/30 text-green-400 font-semibold'
-                            : 'bg-white/5 opacity-60 hover:opacity-100'
-                        }`}
-                        title="Use as example"
-                      >
-                        E
-                      </button>
+
                     </div>
                   </div>
                 );
