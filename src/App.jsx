@@ -5,7 +5,7 @@ import { StatusBar } from "./components/StatusBar";
 import { FileTree } from "./components/FileTree";
 import { SidebarHeader } from "./components/SidebarHeader";
 import { FlatViewMenu } from "./components/FlatViewMenu";
-import { themes, loadTheme } from "./themes/themes";
+import { useTheme } from "./contexts/ThemeContext";
 import { invoke } from "@tauri-apps/api/core";
 import { useCwdMonitor } from "./hooks/useCwdMonitor";
 import { useFlatViewNavigation } from "./hooks/useFlatViewNavigation";
@@ -30,7 +30,7 @@ import { Button } from "./components/ui/button";
 import { Folder, File, ChevronUp, ChevronRight, ChevronDown } from "lucide-react";
 
 function App() {
-  const currentTheme = loadTheme();
+  const { theme } = useTheme();
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [terminalSessionId, setTerminalSessionId] = useState(null);
 
@@ -790,13 +790,13 @@ function App() {
             viewMode={viewMode}
             currentPath={currentPath}
             sessionId={terminalSessionId}
-            theme={themes[currentTheme]}
+            theme={theme.terminal}
           />
         }
       >
         <Terminal
           ref={terminalRef}
-          theme={themes[currentTheme]}
+          theme={theme.terminal}
           onSessionReady={(id) => setTerminalSessionId(id)}
           onSearchFocus={handleSearchFocus}
           onToggleGitFilter={handleToggleGitFilter}

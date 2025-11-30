@@ -3,7 +3,7 @@
 @custom-variant dark (&:is(.dark *));
 
 @theme {
-  /* Kanagawa Theme Colors */
+  /* Default theme colors - will be overridden by ThemeProvider */
   --color-border: hsl(240 13% 20%);
   --color-input: hsl(240 13% 20%);
   --color-ring: hsl(225 46% 67%);
@@ -43,20 +43,20 @@ html, body, #root {
 }
 
 body {
-  background-color: #1F1F28;
-  color: #DCD7BA;
+  /* Background color will be set dynamically by ThemeProvider */
   font-family: "Source Code Pro", Menlo, Monaco, "Courier New", monospace;
 }
 
 :root {
-  --sidebar: hsl(240 13% 14%);
-  --sidebar-foreground: hsl(45 26% 80%);
-  --sidebar-primary: hsl(225 46% 67%);
-  --sidebar-primary-foreground: hsl(240 13% 14%);
-  --sidebar-accent: hsl(240 13% 22%);
-  --sidebar-accent-foreground: hsl(45 26% 80%);
-  --sidebar-border: hsl(240 13% 20%);
-  --sidebar-ring: hsl(225 46% 67%);
+  /* Sidebar variables - will be dynamically set by ThemeProvider */
+  --sidebar: var(--color-sidebar);
+  --sidebar-foreground: var(--color-sidebar-foreground);
+  --sidebar-primary: var(--color-sidebar-primary);
+  --sidebar-primary-foreground: var(--color-sidebar-primary-foreground);
+  --sidebar-accent: var(--color-sidebar-accent);
+  --sidebar-accent-foreground: var(--color-sidebar-accent-foreground);
+  --sidebar-border: var(--color-sidebar-border);
+  --sidebar-ring: var(--color-sidebar-ring);
 }
 
 @theme inline {

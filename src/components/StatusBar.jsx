@@ -1,3 +1,5 @@
+import { ThemeSwitcher } from './ThemeSwitcher';
+
 export const StatusBar = ({ viewMode, currentPath, sessionId, theme }) => {
   return (
     <div
@@ -16,8 +18,9 @@ export const StatusBar = ({ viewMode, currentPath, sessionId, theme }) => {
         </span>
       </div>
 
-      {/* Right section: Session status */}
-      <div className="flex items-center gap-2">
+      {/* Right section: Theme switcher and session status */}
+      <div className="flex items-center gap-4">
+        <ThemeSwitcher />
         <span style={{ color: theme.cursor || '#C8C093' }}>
           {sessionId ? `Session: ${sessionId.slice(0, 8)}` : 'No session'}
         </span>
