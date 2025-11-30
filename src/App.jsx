@@ -57,8 +57,7 @@ function App() {
   const [searchResults, setSearchResults] = useState(null);
   const [allFiles, setAllFiles] = useState([]); // Flat list for indexing
 
-  // Git stats state
-  const [gitStats, setGitStats] = useState(new Map());
+  // Git filter state
   const [showGitChangesOnly, setShowGitChangesOnly] = useState(false);
 
   // Loading state
@@ -145,23 +144,12 @@ function App() {
 
       console.log('Loaded', allEntries.length, 'items total');
 
-      // Fetch git stats
-      let gitStatsData = {};
-      try {
-        gitStatsData = await invoke('get_git_stats', { path: cwd });
-        console.log('Loaded git stats:', Object.keys(gitStatsData).length, 'files changed');
-      } catch (error) {
-        console.warn('Failed to load git stats:', error);
-        // Continue without git stats
-      }
-
       // Build hierarchical tree from flat list
       const treeNodes = buildTreeFromFlatList(allEntries, cwd);
 
       setTreeData(treeNodes);
       setCurrentPath(cwd);
       setAllFiles(allEntries);
-      setGitStats(new Map(Object.entries(gitStatsData)));
       setTreeLoading(false);
 
       // Initialize search index
@@ -398,27 +386,6 @@ function App() {
   const handleToggleGitFilter = useCallback(() => {
     setShowGitChangesOnly(prev => !prev);
   }, []);
-
-  // Auto-expand all folders when git filter is enabled
-  useEffect(() => {
-    if (showGitChangesOnly && gitStats.size > 0) {
-      // Collect all parent folder paths of files with git changes
-      const foldersToExpand = new Set();
-
-      gitStats.forEach((stats, filePath) => {
-        // Walk up the directory tree and add all parent folders
-        let currentPath = filePath;
-        while (currentPath && currentPath !== '/') {
-          const lastSlash = currentPath.lastIndexOf('/');
-          if (lastSlash <= 0) break;
-          currentPath = currentPath.substring(0, lastSlash);
-          foldersToExpand.add(currentPath);
-        }
-      });
-
-      setExpandedFolders(foldersToExpand);
-    }
-  }, [showGitChangesOnly, gitStats]);
 
   // Debounced search effect
   useEffect(() => {
@@ -660,38 +627,7 @@ function App() {
     }
   };
 
-  // Helper function to filter tree by git changes
-  const filterTreeByGitChanges = (nodes, gitStatsMap) => {
-    const filterNodes = (nodes) => {
-      return nodes
-        .map(node => {
-          // Check if this file has git changes
-          const hasChanges = gitStatsMap.has(node.path);
-
-          // For directories, recursively filter children
-          let filteredChildren = node.children;
-          if (node.is_dir && node.children && Array.isArray(node.children)) {
-            filteredChildren = filterNodes(node.children);
-            // Include directory if it has any children with changes
-            if (filteredChildren.length > 0) {
-              return { ...node, children: filteredChildren };
-            }
-          }
-
-          // Include file if it has changes
-          if (!node.is_dir && hasChanges) {
-            return node;
-          }
-
-          return null;
-        })
-        .filter(Boolean);
-    };
-
-    return filterNodes(nodes);
-  };
-
-  // Create filtered tree data for display
+  // Create filtered tree data for display (search filter only)
   const displayedTreeData = useMemo(() => {
     let filtered = treeData;
 
@@ -701,13 +637,8 @@ function App() {
       filtered = filterTreeBySearch(filtered, matchingPaths);
     }
 
-    // Apply git changes filter
-    if (showGitChangesOnly && gitStats.size > 0) {
-      filtered = filterTreeByGitChanges(filtered, gitStats);
-    }
-
     return filtered;
-  }, [treeData, searchResults, showGitChangesOnly, gitStats]);
+  }, [treeData, searchResults]);
 
   return (
     <SidebarProvider open={sidebarOpen} onOpenChange={setSidebarOpen} style={{ height: '100%' }}>
@@ -746,7 +677,7 @@ function App() {
                           searchQuery={searchQuery}
                           expandedFolders={expandedFolders}
                           currentPath={currentPath}
-                          gitStats={gitStats}
+                          showGitChangesOnly={showGitChangesOnly}
                           onToggle={toggleFolder}
                           onSendToTerminal={sendFileToTerminal}
                           analyzedFiles={analyzedFiles}

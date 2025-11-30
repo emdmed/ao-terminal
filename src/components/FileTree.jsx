@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import {
   SidebarMenu,
   SidebarMenuItem,
@@ -6,13 +6,14 @@ import {
 } from "@/components/ui/sidebar";
 import { Button } from "./ui/button";
 import { Folder, File, ChevronRight, ChevronDown, CornerDownRight, ArrowDownFromLine, Plus } from "lucide-react";
+import { invoke } from "@tauri-apps/api/core";
 
 export function FileTree({
   nodes,
   searchQuery,
   expandedFolders,
   currentPath,
-  gitStats,
+  showGitChangesOnly,
   onToggle,
   onSendToTerminal,
   analyzedFiles,
@@ -24,8 +25,77 @@ export function FileTree({
   onToggleFileSelection,
   isTextareaPanelOpen
 }) {
+  // Internal git stats state
+  const [gitStats, setGitStats] = useState(new Map());
 
-  if (!nodes || nodes.length === 0) {
+  // Fetch git stats periodically
+  useEffect(() => {
+    if (!currentPath) return;
+
+    // Initial fetch
+    const fetchGitStats = async () => {
+      try {
+        const statsData = await invoke('get_git_stats', { path: currentPath });
+        setGitStats(new Map(Object.entries(statsData)));
+      } catch (error) {
+        console.warn('Failed to load git stats:', error);
+        setGitStats(new Map());
+      }
+    };
+
+    fetchGitStats();
+
+    // Set up 5-second interval
+    const interval = setInterval(fetchGitStats, 5000);
+
+    // Cleanup on unmount or path change
+    return () => clearInterval(interval);
+  }, [currentPath]);
+
+  // Helper function to filter tree by git changes
+  const filterTreeByGitChanges = (nodes, gitStatsMap) => {
+    const filterNodes = (nodes) => {
+      return nodes
+        .map(node => {
+          // Check if this file has git changes
+          const hasChanges = gitStatsMap.has(node.path);
+
+          // For directories, recursively filter children
+          let filteredChildren = node.children;
+          if (node.is_dir && node.children && Array.isArray(node.children)) {
+            filteredChildren = filterNodes(node.children);
+            // Include directory if it has any children with changes
+            if (filteredChildren.length > 0) {
+              return { ...node, children: filteredChildren };
+            }
+          }
+
+          // Include file if it has changes
+          if (!node.is_dir && hasChanges) {
+            return node;
+          }
+
+          return null;
+        })
+        .filter(Boolean);
+    };
+
+    return filterNodes(nodes);
+  };
+
+  // Apply filters to get displayed nodes
+  const displayedNodes = useMemo(() => {
+    let filtered = nodes;
+
+    // Apply git changes filter if enabled
+    if (showGitChangesOnly && gitStats.size > 0) {
+      filtered = filterTreeByGitChanges(filtered, gitStats);
+    }
+
+    return filtered;
+  }, [nodes, showGitChangesOnly, gitStats]);
+
+  if (!displayedNodes || displayedNodes.length === 0) {
     return (
       <div className="p-4 text-center opacity-50 text-xs">
         {searchQuery ? (
@@ -44,7 +114,7 @@ export function FileTree({
 
   return (
     <SidebarMenu>
-      {nodes.map((node) => (
+      {displayedNodes.map((node) => (
         <TreeNode
           key={node.path}
           node={node}
