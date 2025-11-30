@@ -1,3 +1,4 @@
+import React from "react";
 import {
   SidebarMenu,
   SidebarMenuItem,
@@ -82,6 +83,7 @@ function TreeNode({
   onToggleFileSelection,
   isTextareaPanelOpen
 }) {
+  const [isHovered, setIsHovered] = React.useState(false);
   const isExpanded = expandedFolders.has(node.path);
   const isCurrentPath = currentPath === node.path;
   const hasChildren = node.children && Array.isArray(node.children) && node.children.length > 0;
@@ -126,28 +128,33 @@ function TreeNode({
           <div
             style={{ paddingLeft: `${depth * 8 + 2}px` }}
             className={`flex items-center w-full py-px pr-px ${isCurrentPath ? 'bg-accent' : ''}`}
+            onMouseEnter={() => setIsHovered(true)}
+            onMouseLeave={() => setIsHovered(false)}
           >
             {/* Main file display (non-clickable) */}
-            <div className="flex items-center justify-start flex-1 min-w-0">
-              <File className="w-3 h-3 ml-1 mr-1.5 flex-shrink-0" />
+            <div
+              className="flex items-center justify-start flex-1 min-w-0 gap-1.5"
+              onMouseEnter={() => setIsHovered(true)}
+              onMouseLeave={() => setIsHovered(false)}
+            >
+              <File className="w-3 h-3 ml-1 flex-shrink-0" />
               <span className="truncate text-xs">{node.name}</span>
 
               {/* Git stats badge */}
               {hasGitChanges && (
-                <span className="ml-2 text-[0.65rem] font-mono flex-shrink-0">
+                <span className="text-[0.65rem] font-mono flex-shrink-0">
                   <span style={{ color: '#98BB6C' }}>+{stats.added}</span>
                   {' '}
                   <span style={{ color: '#C34043' }}>-{stats.deleted}</span>
                 </span>
               )}
-            </div>
 
-            {/* Action buttons */}
-            <div className="flex gap-1 flex-shrink-0">
-              {/* Analyze button - only for JS/TS files */}
+              {/* Analyze button - inline with filename, visible on hover */}
               {isSupportedForAnalysis && (
                 <button
-                  className="p-1 transition-opacity duration-200 opacity-60 hover:opacity-100 hover:bg-white/10 rounded"
+                  className={`p-1 flex-shrink-0 transition-opacity duration-200 rounded hover:bg-white/10 ${
+                    isHovered ? 'opacity-60 hover:opacity-100' : 'opacity-0 pointer-events-none'
+                  }`}
                   onClick={(e) => {
                     e.stopPropagation();
                     onAnalyzeFile(node.path);
@@ -157,7 +164,10 @@ function TreeNode({
                   <ArrowDownFromLine className="w-3 h-3" />
                 </button>
               )}
+            </div>
 
+            {/* Action buttons */}
+            <div className="flex gap-1 flex-shrink-0">
               {/* Unified button - behavior depends on textarea panel state */}
               {!node.is_dir && (
                 <button
