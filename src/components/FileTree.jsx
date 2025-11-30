@@ -172,13 +172,20 @@ function TreeNode({
 
   return (
     <>
-      <SidebarMenuItem className="me-4">
+      <SidebarMenuItem className="me-4 relative my-0">
+        {/* Indentation guide line */}
+        {depth > 0 && (
+          <div
+            className="absolute top-0 bottom-0 border-l border-white/10"
+            style={{ left: `${(depth - 1) * 12 + 6}px` }}
+          />
+        )}
         {node.is_dir ? (
           // Folder: clickable button to expand/collapse
           <SidebarMenuButton
             size="sm"
             onClick={() => onToggle(node.path)}
-            style={{ paddingLeft: `${depth * 8 + 2}px` }}
+            style={{ paddingLeft: `${depth * 12}px` }}
             className={`cursor-pointer ${isCurrentPath ? 'bg-accent' : ''}`}
           >
             <div className="flex items-center w-full">
@@ -189,25 +196,25 @@ function TreeNode({
                   <ChevronRight className="w-3xs h-3" />
                 )}
               </div>
-              <Folder className="w-3 h-3 ml-1 mr-1.5" style={{ color: '#E6C384' }} />
+              <Folder className="w-3 h-3 ml-1 mr-1" style={{ color: '#E6C384' }} />
               <span>{node.name}</span>
             </div>
           </SidebarMenuButton>
         ) : (
           // File: display with analyze and send-to-terminal buttons
           <div
-            style={{ paddingLeft: `${depth * 8 + 2}px` }}
-            className={`flex items-center w-full py-px pr-px ${isCurrentPath ? 'bg-accent' : ''}`}
+            style={{ paddingLeft: `${depth * 12}px` }}
+            className={`flex items-center w-full py-0 pr-px ${isCurrentPath ? 'bg-accent' : ''}`}
             onMouseEnter={() => setIsHovered(true)}
             onMouseLeave={() => setIsHovered(false)}
           >
             {/* Main file display (non-clickable) */}
             <div
-              className="flex items-center justify-start flex-1 min-w-0 gap-1.5"
+              className="flex items-center justify-start flex-1 min-w-0 gap-1"
               onMouseEnter={() => setIsHovered(true)}
               onMouseLeave={() => setIsHovered(false)}
             >
-              <File className="w-3 h-3 ml-1 flex-shrink-0" />
+              <File className="w-3 h-3 ml-1 mr-1 flex-shrink-0" />
               <span className="truncate text-xs">{node.name}</span>
 
               {/* Git stats badge */}
@@ -311,8 +318,8 @@ function AnalysisPanel({ data, depth, onSendItem }) {
   if (data.error) {
     return (
       <div
-        style={{ paddingLeft: `${depth * 8 + 16}px` }}
-        className="text-xs text-red-400 py-1 opacity-80"
+        style={{ paddingLeft: `${depth * 12 + 12}px` }}
+        className="text-xs text-red-400 py-0 opacity-80"
       >
         ⚠️ Parse failed: {data.error}
       </div>
@@ -320,7 +327,7 @@ function AnalysisPanel({ data, depth, onSendItem }) {
   }
 
   const { hooks, definedComponents, usedComponents, functions } = data;
-  const baseIndent = depth * 8 + 16;
+  const baseIndent = depth * 12 + 12;
 
   // Check if there are any results
   const hasResults = (hooks && hooks.length > 0) ||
@@ -332,7 +339,7 @@ function AnalysisPanel({ data, depth, onSendItem }) {
     return (
       <div
         style={{ paddingLeft: `${baseIndent}px` }}
-        className="text-xs opacity-50 py-1"
+        className="text-xs opacity-50 py-0"
       >
         No hooks, components, or functions found
       </div>
@@ -404,10 +411,10 @@ function AnalysisSection({ title, items, indent, onSendItem }) {
   const categoryLabel = getCategoryLabel(title);
 
   return (
-    <div className="py-1">
+    <div className="py-0">
       <div
         style={{ paddingLeft: `${indent}px` }}
-        className="text-[0.65rem] font-semibold opacity-60 mb-0.5"
+        className="text-[0.65rem] font-semibold opacity-60 mb-0"
       >
         {title} ({items.length})
       </div>
@@ -415,7 +422,7 @@ function AnalysisSection({ title, items, indent, onSendItem }) {
         <button
           key={idx}
           style={{ paddingLeft: `${indent + 8}px` }}
-          className="w-full text-left text-xs py-0.5 hover:bg-white/5 flex items-center gap-1 transition-colors"
+          className="w-full text-left text-xs py-0 hover:bg-white/5 flex items-center gap-1 transition-colors"
           onClick={(e) => {
             e.stopPropagation();
             // Pass both item and category
