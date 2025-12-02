@@ -1,6 +1,7 @@
 mod state;
 mod pty;
 mod fs;
+mod git_cache;
 
 use state::create_state;
 use pty::commands::{spawn_terminal, write_to_terminal, resize_terminal, close_terminal};

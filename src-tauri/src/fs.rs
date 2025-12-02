@@ -72,11 +72,12 @@ pub fn read_directory(path: Option<String>) -> Result<Vec<DirectoryEntry>, Strin
 
 #[tauri::command]
 pub fn get_terminal_cwd(session_id: String, state: tauri::State<AppState>) -> Result<String, String> {
-    let sessions = state
+    let state_lock = state
         .lock()
         .map_err(|e| format!("Failed to lock state: {}", e))?;
 
-    let session = sessions
+    let session = state_lock
+        .pty_sessions
         .get(&session_id)
         .ok_or_else(|| format!("Session not found: {}", session_id))?;
 
@@ -264,12 +265,42 @@ fn get_git_diff_stats(repo_path: &PathBuf) -> Result<HashMap<String, GitStats>, 
 }
 
 #[tauri::command]
-pub fn get_git_stats(path: Option<String>) -> Result<HashMap<String, GitStats>, String> {
+pub fn get_git_stats(path: Option<String>, state: tauri::State<AppState>) -> Result<HashMap<String, GitStats>, String> {
     let repo_path = if let Some(p) = path {
         PathBuf::from(p)
     } else {
         std::env::current_dir().map_err(|e| format!("Failed to get current directory: {}", e))?
     };
 
-    get_git_diff_stats(&repo_path)
+    // Canonicalize path for consistent cache keys
+    let canonical_path = repo_path.canonicalize()
+        .unwrap_or_else(|_| repo_path.clone());
+
+    // Try cache first
+    {
+        let state_lock = state
+            .lock()
+            .map_err(|e| format!("Failed to lock state: {}", e))?;
+
+        if let Some(cached_stats) = state_lock.git_cache.get(&canonical_path) {
+            return Ok(cached_stats);
+        }
+    }
+
+    // Cache miss - run git diff
+    let stats = get_git_diff_stats(&repo_path)?;
+
+    // Store in cache and setup watcher
+    {
+        let state_lock = state
+            .lock()
+            .map_err(|e| format!("Failed to lock state: {}", e))?;
+
+        state_lock.git_cache.set(canonical_path.clone(), stats.clone());
+
+        // Try to setup watcher (best-effort, ignore errors)
+        let _ = state_lock.git_cache.setup_watcher(canonical_path);
+    }
+
+    Ok(stats)
 }

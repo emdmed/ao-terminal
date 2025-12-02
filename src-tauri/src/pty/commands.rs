@@ -61,6 +61,7 @@ pub fn spawn_terminal(
     state
         .lock()
         .map_err(|e| format!("Failed to lock state: {}", e))?
+        .pty_sessions
         .insert(session_id.clone(), session);
 
     Ok(session_id)
@@ -72,11 +73,12 @@ pub fn write_to_terminal(
     data: String,
     state: tauri::State<AppState>,
 ) -> Result<(), String> {
-    let mut sessions = state
+    let mut state_lock = state
         .lock()
         .map_err(|e| format!("Failed to lock state: {}", e))?;
 
-    let session = sessions
+    let session = state_lock
+        .pty_sessions
         .get_mut(&session_id)
         .ok_or_else(|| format!("Session not found: {}", session_id))?;
 
@@ -90,11 +92,12 @@ pub fn resize_terminal(
     cols: u16,
     state: tauri::State<AppState>,
 ) -> Result<(), String> {
-    let mut sessions = state
+    let mut state_lock = state
         .lock()
         .map_err(|e| format!("Failed to lock state: {}", e))?;
 
-    let session = sessions
+    let session = state_lock
+        .pty_sessions
         .get_mut(&session_id)
         .ok_or_else(|| format!("Session not found: {}", session_id))?;
 
@@ -103,11 +106,12 @@ pub fn resize_terminal(
 
 #[tauri::command]
 pub fn close_terminal(session_id: String, state: tauri::State<AppState>) -> Result<(), String> {
-    let mut sessions = state
+    let mut state_lock = state
         .lock()
         .map_err(|e| format!("Failed to lock state: {}", e))?;
 
-    sessions
+    state_lock
+        .pty_sessions
         .remove(&session_id)
         .ok_or_else(|| format!("Session not found: {}", session_id))?;
 
