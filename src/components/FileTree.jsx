@@ -45,8 +45,8 @@ export function FileTree({
 
     fetchGitStats();
 
-    // Set up 5-second interval
-    const interval = setInterval(fetchGitStats, 5000);
+    // Set up 1-second interval
+    const interval = setInterval(fetchGitStats, 1000);
 
     // Cleanup on unmount or path change
     return () => clearInterval(interval);
