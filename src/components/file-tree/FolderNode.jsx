@@ -27,7 +27,7 @@ export function FolderNode({ node, depth, isExpanded, isCurrentPath, onToggle })
           )}
         </div>
         <Folder className="w-3 h-3 ml-1 mr-1" style={{ color: '#E6C384' }} />
-        <span>{node.name}</span>
+        <span className="truncate" title={node.name}>{node.name}</span>
       </div>
     </SidebarMenuButton>
   );

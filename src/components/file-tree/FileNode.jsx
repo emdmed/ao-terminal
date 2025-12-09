@@ -1,7 +1,6 @@
 import React, { useState } from "react";
 import { File, ArrowDownFromLine, CornerDownRight, Plus, CheckCircle, Loader2 } from "lucide-react";
 import { GitStatsBadge } from "./GitStatsBadge";
-import { TypeCheckBadge } from "./TypeCheckBadge";
 
 /**
  * Renders a file node in the tree with analysis and action buttons
@@ -33,6 +32,7 @@ export function FileNode({
   const [isHovered, setIsHovered] = useState(false);
   const isSupportedForAnalysis = /\.(jsx?|tsx?)$/i.test(node.name);
   const hasGitChanges = stats && (stats.added > 0 || stats.deleted > 0);
+  const hasTypeErrors = typeCheckResult && typeCheckResult.error_count > 0;
 
   return (
     <div
@@ -44,13 +44,16 @@ export function FileNode({
       {/* Main file display */}
       <div className="flex items-center justify-start flex-1 min-w-0 gap-1">
         <File className="w-3 h-3 ml-1 mr-1 flex-shrink-0" />
-        <span className="truncate text-xs">{node.name}</span>
+        <span
+          className="truncate text-xs"
+          style={{ color: hasTypeErrors ? '#C34043' : 'inherit' }}
+          title={node.name}
+        >
+          {node.name}
+        </span>
 
         {/* Git stats badge */}
         {hasGitChanges && <GitStatsBadge stats={stats} />}
-
-        {/* Type check badge */}
-        {typeCheckResult && <TypeCheckBadge result={typeCheckResult} />}
 
         {/* Analyze button - inline with filename, visible on hover */}
         {isSupportedForAnalysis && (
