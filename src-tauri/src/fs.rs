@@ -304,3 +304,32 @@ pub fn get_git_stats(path: Option<String>, state: tauri::State<AppState>) -> Res
 
     Ok(stats)
 }
+
+#[tauri::command]
+pub fn enable_file_watchers(state: tauri::State<AppState>) -> Result<(), String> {
+    let state_lock = state
+        .lock()
+        .map_err(|e| format!("Failed to lock state: {}", e))?;
+
+    state_lock.git_cache.enable_watchers();
+    Ok(())
+}
+
+#[tauri::command]
+pub fn disable_file_watchers(state: tauri::State<AppState>) -> Result<(), String> {
+    let state_lock = state
+        .lock()
+        .map_err(|e| format!("Failed to lock state: {}", e))?;
+
+    state_lock.git_cache.disable_watchers();
+    Ok(())
+}
+
+#[tauri::command]
+pub fn get_file_watchers_status(state: tauri::State<AppState>) -> Result<bool, String> {
+    let state_lock = state
+        .lock()
+        .map_err(|e| format!("Failed to lock state: {}", e))?;
+
+    Ok(state_lock.git_cache.is_enabled())
+}

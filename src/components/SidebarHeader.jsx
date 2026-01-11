@@ -29,11 +29,6 @@ export function SidebarHeader({
           <span className="text-[0.65rem] font-medium opacity-60 tracking-wide uppercase">
             {viewMode === 'tree' ? 'Claude Mode' : 'Navigation Mode'}
           </span>
-          {!fileWatchingEnabled && (
-            <span className="text-[0.55rem] font-medium px-1 py-0.5 rounded bg-red-500/20 text-red-400 tracking-wide">
-              WATCHERS OFF
-            </span>
-          )}
         </div>
 
         {/* Action buttons */}

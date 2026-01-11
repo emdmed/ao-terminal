@@ -6,7 +6,7 @@ mod typecheck;
 
 use state::create_state;
 use pty::commands::{spawn_terminal, write_to_terminal, resize_terminal, close_terminal};
-use fs::{read_directory, get_terminal_cwd, read_file_content, read_directory_recursive, get_git_stats};
+use fs::{read_directory, get_terminal_cwd, read_file_content, read_directory_recursive, get_git_stats, enable_file_watchers, disable_file_watchers, get_file_watchers_status};
 use typecheck::check_file_types;
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
@@ -24,7 +24,10 @@ pub fn run() {
             read_file_content,
             read_directory_recursive,
             get_git_stats,
-            check_file_types
+            check_file_types,
+            enable_file_watchers,
+            disable_file_watchers,
+            get_file_watchers_status
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
